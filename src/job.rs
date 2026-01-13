@@ -1,9 +1,45 @@
 use crate::yaml;
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Arch {
+    X64,
+    ARM64,
+    RISCV64,
+}
+
+impl Arch {
+    pub fn parse(s: &str) -> Option<Arch> {
+        match s.to_lowercase().as_str() {
+            "x86_64" | "x64" | "amd64" => Some(Arch::X64),
+            "aarch64" | "arm64" => Some(Arch::ARM64),
+            "riscv64" => Some(Arch::RISCV64),
+            _ => None,
+        }
+    }
+
+    pub fn qemu_binary(&self) -> &'static str {
+        match self {
+            Arch::X64 => "qemu-system-x86_64",
+            Arch::ARM64 => "qemu-system-aarch64",
+            Arch::RISCV64 => "qemu-system-riscv64",
+        }
+    }
+
+    pub fn default() -> Arch {
+        match std::env::consts::ARCH {
+            "x86_64" => Arch::X64,
+            "aarch64" => Arch::ARM64,
+            "riscv64" => Arch::RISCV64,
+            other => panic!("Unsupported host architecture: {}", other),
+        }
+    }
+}
+
 pub struct Job {
     pub name: String,
     pub image: String,
+    pub arch: Arch,
     pub cpus: u32,
     /// Megabytes
     pub memory: u64,

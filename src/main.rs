@@ -27,6 +27,7 @@ fn extract_yaml_workflows(args: cli::RunArgs) -> Vec<job::Job> {
     };
 
     let image_overrides = cli::parse_overrides(&args.image);
+    let arch_overrides = cli::parse_overrides(&args.arch);
     let cpus_overrides = cli::parse_overrides(&args.cpus);
     let mem_overrides = cli::parse_overrides(&args.mem);
     let user_overrides = cli::parse_overrides(&args.ssh_user);
@@ -46,6 +47,19 @@ fn extract_yaml_workflows(args: cli::RunArgs) -> Vec<job::Job> {
                     .expect("No override supplied, so expected image in YAML workflow"),
             ),
         );
+
+        let job_arch: job::Arch = {
+            let cli_arch = cli::resolve_for_job(&arch_overrides, &name);
+            if let Some(arch_str) = cli_arch {
+                job::Arch::parse(arch_str)
+                    .expect(&format!("Invalid architecture: {}", arch_str))
+            } else if let Some(ref yaml_arch) = pair.1.arch {
+                job::Arch::parse(yaml_arch)
+                    .expect(&format!("Invalid architecture: {}", yaml_arch))
+            } else {
+                job::Arch::default()
+            }
+        };
 
         let job_cpus: u32 = {
             let temp = cli::resolve_for_job(&cpus_overrides, &name);
@@ -179,8 +193,9 @@ fn extract_yaml_workflows(args: cli::RunArgs) -> Vec<job::Job> {
         }
 
         jobs.push(job::Job {
-            image: job_image,
             name: name,
+            image: job_image,
+            arch: job_arch,
             cpus: job_cpus,
             memory: job_mem,
             user: job_user,

@@ -80,6 +80,8 @@ vci run <workflow.yaml> [OPTIONS]
 | `--ssh-key <job>=<path>` | SSH private key (per-job) |
 | `--ssh-port <port>` | SSH port (global, default: 22) |
 | `--ssh-port <job>=<port>` | SSH port (per-job) |
+| `--arch <arch>` | VM architecture (global, default: host arch) `x86_64`, `x64`, `amd64`, `aarch64`, `arm64`, `riscv64` |
+| `--arch <job>=<arch>` | VM architecture (per-job) `x86_64`, `x64`, `amd64`, `aarch64`, `arm64`, `riscv64` |
 
 ### All YAML Options
 
@@ -90,6 +92,7 @@ Each top-level key is a job name. Jobs run sequentially (for now).
 ```yaml
 job-name:
   image: ~/path/to/image.qcow2      # VM disk image
+  arch: x86_64                      # optional: architecture (default: host arch)
   cpus: 2                           # optional: CPU count
   memory: 8G                        # optional: Memory (e.g., 2G, 512M) (default: 8G)
   user: root                        # SSH username
@@ -99,6 +102,8 @@ job-name:
   steps:                            # List of steps to execute
     - ...
 ```
+
+`arch` may be one of: `x86_64`, `x64`, `amd64`, `aarch64`, `arm64`, `riscv64`
 
 #### Step Types
 

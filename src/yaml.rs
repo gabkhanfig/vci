@@ -7,6 +7,7 @@ pub type Workflow = HashMap<String, Job>;
 #[derive(Debug, Clone, Deserialize)]
 pub struct Job {
     pub image: Option<String>,
+    pub arch: Option<String>,
     pub cpus: Option<u32>,
     pub memory: Option<String>,
     pub user: Option<String>,

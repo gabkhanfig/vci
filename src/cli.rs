@@ -49,6 +49,10 @@ pub struct RunArgs {
     /// SSH port: --ssh-port 22 OR --ssh-port job=2222
     #[argh(option)]
     pub ssh_port: Vec<String>,
+
+    /// VM architecture: --arch x86_64 OR --arch job=aarch64 (default: host arch)
+    #[argh(option)]
+    pub arch: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
