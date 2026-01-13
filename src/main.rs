@@ -1,15 +1,101 @@
 mod cli;
 mod job;
-mod yaml;
 mod ssh;
+mod yaml;
+
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+/// Right now, VMs are run synchronously. In the event of any error we can
+/// handle (excluding total system failure),
+/// we still want to not leave the user with non-cleaned up files.
+static CLEANUP_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+pub fn set_cleanup_path(path: PathBuf) {
+    if let Ok(mut guard) = CLEANUP_PATH.lock() {
+        *guard = Some(path);
+    }
+}
+
+pub fn clear_cleanup_path() {
+    if let Ok(mut guard) = CLEANUP_PATH.lock() {
+        *guard = None;
+    }
+}
+
+fn do_cleanup() {
+    if let Ok(guard) = CLEANUP_PATH.lock() {
+        if let Some(ref path) = *guard {
+            let _ = std::fs::remove_file(path);
+        }
+    }
+}
 
 fn main() {
+    setup_signal_handlers();
+
     let args: cli::Args = argh::from_env();
 
     match args.command {
         cli::Command::Run(run_args) => {
             let jobs = extract_yaml_workflows(run_args);
         }
+    }
+}
+
+fn setup_signal_handlers() {
+    // background thread handles signals (kinda silly but whatever, tokio you do you)
+    std::thread::spawn(|| {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("Failed to create signal handler runtime");
+
+        rt.block_on(async {
+            signal_handler().await;
+        });
+    });
+}
+
+async fn signal_handler() {
+    #[cfg(unix)]
+    {
+        use tokio::signal::unix::{SignalKind, signal};
+
+        let mut sigint = signal(SignalKind::interrupt()).unwrap();
+        let mut sigterm = signal(SignalKind::terminate()).unwrap();
+        let mut sighup = signal(SignalKind::hangup()).unwrap();
+        let mut sigquit = signal(SignalKind::quit()).unwrap();
+
+        tokio::select! {
+            _ = sigint.recv() => {},
+            _ = sigterm.recv() => {},
+            _ = sighup.recv() => {},
+            _ = sigquit.recv() => {},
+        }
+
+        do_cleanup();
+        std::process::exit(1);
+    }
+
+    #[cfg(windows)]
+    {
+        use tokio::signal::windows;
+
+        let mut ctrl_c = windows::ctrl_c().unwrap();
+        let mut ctrl_break = windows::ctrl_break().unwrap();
+        let mut ctrl_close = windows::ctrl_close().unwrap();
+        let mut ctrl_shutdown = windows::ctrl_shutdown().unwrap();
+
+        tokio::select! {
+            _ = ctrl_c.recv() => {},
+            _ = ctrl_break.recv() => {},
+            _ = ctrl_close.recv() => {},
+            _ = ctrl_shutdown.recv() => {},
+        }
+
+        do_cleanup();
+        std::process::exit(1);
     }
 }
 
@@ -189,6 +275,10 @@ fn extract_yaml_workflows(args: cli::RunArgs) -> Vec<job::Job> {
                 env: step.env,
                 continue_on_error: step.continue_on_error,
             })
+        }
+
+        if job_steps.len() == 0 {
+            panic!("Expected at least 1 step");
         }
 
         jobs.push(job::Job {
