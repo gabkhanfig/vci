@@ -41,6 +41,9 @@ fn main() {
             let jobs = extract_yaml_workflows(run_args);
             run_jobs(jobs);
         }
+        cli::Command::Cleanup(cleanup_args) => {
+            run_cleanup(cleanup_args);
+        }
     }
 }
 
@@ -68,6 +71,74 @@ fn run_jobs(jobs: Vec<job::Job>) {
     }
 
     println!("{}", "All jobs completed successfully".green().bold());
+}
+
+fn run_cleanup(args: cli::CleanupArgs) {
+    use colored::Colorize;
+    use std::io::{self, Write};
+
+    let temp_dir = std::env::temp_dir();
+    let files = find_vci_temp_files(&temp_dir);
+
+    if files.is_empty() {
+        println!("{}", "No temporary VCI files found".dimmed());
+        return;
+    }
+
+    if args.list {
+        println!("{}", format!("Found {} temporary VCI file(s):", files.len()).cyan());
+        for file in &files {
+            println!("  {}", file.display());
+        }
+        return;
+    }
+
+    if args.force {
+        for file in &files {
+            match std::fs::remove_file(file) {
+                Ok(_) => println!("{} {}", "Deleted:".green(), file.display()),
+                Err(e) => eprintln!("{} {}: {}", "Failed to delete:".red(), file.display(), e),
+            }
+        }
+        return;
+    }
+
+    // confirm each deletion, very important
+    println!("{}", format!("Found {} temporary VCI file(s)", files.len()).cyan());
+    for file in &files {
+        print!("Delete {}? [y/N] ", file.display());
+        io::stdout().flush().ok();
+
+        let mut input = String::new();
+        if io::stdin().read_line(&mut input).is_ok() {
+            let input = input.trim().to_lowercase();
+            if input == "y" || input == "yes" {
+                match std::fs::remove_file(file) {
+                    Ok(_) => println!("{}", "  Deleted".green()),
+                    Err(e) => eprintln!("{} {}", "  Failed:".red(), e),
+                }
+            } else {
+                println!("{}", "  Skipped".dimmed());
+            }
+        }
+    }
+}
+
+fn find_vci_temp_files(temp_dir: &std::path::Path) -> Vec<PathBuf> {
+    let mut files = Vec::new();
+
+    if let Ok(entries) = std::fs::read_dir(temp_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if name.starts_with("vci-") && name.ends_with(".qcow2") {
+                    files.push(path);
+                }
+            }
+        }
+    }
+
+    files
 }
 
 fn setup_signal_handlers() {

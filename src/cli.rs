@@ -1,7 +1,7 @@
 use argh::FromArgs;
 use std::{default, path::PathBuf};
 
-/// VCI Virtual Machine CI Runner
+/// VCI: Virtual Machine CI Runner
 #[derive(FromArgs, Debug)]
 pub struct Args {
     #[argh(subcommand)]
@@ -12,6 +12,7 @@ pub struct Args {
 #[argh(subcommand)]
 pub enum Command {
     Run(RunArgs),
+    Cleanup(CleanupArgs),
 }
 
 /// Run a workflow file
@@ -53,6 +54,19 @@ pub struct RunArgs {
     /// VM architecture: --arch x86_64 OR --arch job=aarch64 (default: host arch)
     #[argh(option)]
     pub arch: Vec<String>,
+}
+
+/// Clean up leftover temporary VM images
+#[derive(FromArgs, Debug)]
+#[argh(subcommand, name = "cleanup")]
+pub struct CleanupArgs {
+    /// delete all without confirmation
+    #[argh(switch)]
+    pub force: bool,
+
+    /// list files that would be deleted without deleting
+    #[argh(switch)]
+    pub list: bool,
 }
 
 #[derive(Debug, Clone)]
