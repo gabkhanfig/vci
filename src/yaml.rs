@@ -1,4 +1,4 @@
-use crate::job;
+use crate::job::{self, MAX_TIMEOUT};
 use serde::Deserialize;
 use std::collections::HashMap;
 
@@ -77,7 +77,7 @@ pub fn parse_timeout_seconds(s: &str) -> u64 {
         (s, 1u64)
     };
 
-    return num.parse::<u64>().ok().map(|n| n * unit).unwrap();
+    return num.parse::<u64>().ok().map(|n| n * unit).unwrap_or(MAX_TIMEOUT);
 }
 
 #[cfg(test)]

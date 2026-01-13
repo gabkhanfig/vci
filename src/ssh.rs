@@ -18,6 +18,7 @@ pub const SSH_WAIT_TIMEOUT: u64 = 150;
 const SSH_POLL_INTERVAL: u64 = 2;
 
 /// find available TCP port for SSH
+/// TODO potential race condition here. Should fix this
 pub fn find_available_port() -> Option<u16> {
     for port in PORT_RANGE_START..=PORT_RANGE_END {
         if is_port_available(port) {
@@ -195,6 +196,9 @@ fn build_command(command: &str, workdir: Option<&str>, env: &HashMap<String, Str
     let mut parts = Vec::new();
 
     for (key, value) in env {
+        if !is_valid_env_key(key) {
+            continue;
+        }
         let escaped = value.replace("'", "'\\''");
         parts.push(format!("export {}='{}'", key, escaped));
     }
@@ -206,6 +210,27 @@ fn build_command(command: &str, workdir: Option<&str>, env: &HashMap<String, Str
 
     parts.push(command.to_string());
     parts.join(" && ")
+}
+
+/// Prevent command injection
+fn is_valid_env_key(key: &str) -> bool {
+    if key.is_empty() {
+        return false;
+    }
+
+    let mut chars = key.chars();
+    let first = chars.next().unwrap();
+    if !first.is_ascii_alphabetic() && first != '_' {
+        return false;
+    }
+
+    for c in chars {
+        if !c.is_ascii_alphanumeric() && c != '_' {
+            return false;
+        }
+    }
+
+    true
 }
 
 pub enum CopyDirection {

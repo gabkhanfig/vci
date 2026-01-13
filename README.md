@@ -2,6 +2,10 @@
 
 I don't want to pay hosting fees for projects with a vast amount of CI. I wanted a way to easily run CI scripts for testing or deployment using VMs, so I made this to do my CI/CD on my own hardware.
 
+This allows running CI/CD real OS images, as well as cross-architecture without having to go buy a bunch of machines myself. For most use cases, this is sufficient. If virtualization / emulation is not sufficient, you probably know what you are doing.
+
+Disabling networking for part of the workflow is also possible, and is incredibly useful when testing untrusted PRs or otherwise.
+
 Currently just supports QEMU.
 
 ## Example CI Script
@@ -20,6 +24,10 @@ windows-11-x64:
           copy:
             from: ./test/test.ps1
             to: vm:/test/test.ps1
+
+        - name: Run Subsequent Steps Offline
+          offline: true
+
         - name: Run Test Script on VM
           run: ./test/test.ps1
 
@@ -35,6 +43,7 @@ windows-11-arm64:
           copy:
             from: ./test/test.ps1
             to: vm:/test/test.ps1
+            
         - name: Run Test Script on VM
           run: ./test/test.ps1
 ```
@@ -94,6 +103,11 @@ VCI does its best to cleanup in any possible failure, but hardware failure is al
 ```sh
 vci cleanup
 ```
+
+| Option | Description |
+|--------|-------------|
+| `--list` | List any file flagged for deletion |
+| `--force` | Forcibly delete all flagged file, rather than manually confirming |
 
 ### All YAML Options
 

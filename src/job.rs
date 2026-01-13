@@ -6,7 +6,10 @@ use std::process::Child;
 
 fn expand_path(path: &str) -> PathBuf {
     if path.starts_with("~/") {
-        if let Some(home) = std::env::var_os("HOME") {
+        // Unix: $HOME, Windows: $USERPROFILE
+        if let Some(home) = std::env::var_os("HOME")
+            .or_else(|| std::env::var_os("USERPROFILE"))
+        {
             return PathBuf::from(home).join(&path[2..]);
         }
     }
@@ -346,7 +349,11 @@ impl JobRunner {
                 let to = copy_spec.to.clone();
                 let ignore: Vec<String> = Vec::new(); // TODO: add ignore to CopySpec if needed
 
-                ssh::copy_files(self.host_port, creds, &from, &to, &ignore).await?;
+                let copy_future = ssh::copy_files(self.host_port, creds, &from, &to, &ignore);
+
+                tokio::time::timeout(timeout_duration, copy_future)
+                    .await
+                    .map_err(|_| format!("Copy timed out after {}s", step.timeout))??;
 
                 return Ok(());
             }

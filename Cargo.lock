@@ -2134,7 +2134,6 @@ dependencies = [
 name = "vci"
 version = "0.1.0"
 dependencies = [
- "anyhow",
  "argh",
  "colored",
  "ring",
