@@ -62,8 +62,10 @@ cargo install --path .
 
 ### All CLI Options
 
+#### `vci run`
+
 ```sh
-vci run <workflow.yaml> [OPTIONS]
+vci run path/to/workflow.yaml [OPTIONS]
 ```
 
 | Option | Description |
@@ -84,6 +86,14 @@ vci run <workflow.yaml> [OPTIONS]
 | `--ssh-port <job>=<port>` | SSH port (per-job) |
 | `--arch <arch>` | VM architecture (global, default: host arch) `x86_64`, `x64`, `amd64`, `aarch64`, `arm64`, `riscv64` |
 | `--arch <job>=<arch>` | VM architecture (per-job) `x86_64`, `x64`, `amd64`, `aarch64`, `arm64`, `riscv64` |
+
+#### `vci cleanup`
+
+VCI does its best to cleanup in any possible failure, but hardware failure is also possible, and not something that can reasonably be accounted for in this case. `vci cleanup` is to be used to delete ANY `vci` VM file in the temporary directories.
+
+```sh
+vci cleanup
+```
 
 ### All YAML Options
 

@@ -308,8 +308,10 @@ impl JobRunner {
 
     async fn run_step(&mut self, step_idx: usize, creds: &SshCredentials) -> Result<(), String> {
         use colored::Colorize;
+        use std::time::Duration;
 
         let step = &self.job.steps[step_idx];
+        let timeout_duration = Duration::from_secs(step.timeout);
 
         match &step.kind {
             StepKind::Run(command) => {
@@ -317,9 +319,13 @@ impl JobRunner {
                 let workdir = step.workdir.clone();
                 let env = step.env.clone();
 
-                let result =
-                    ssh::run_command(self.host_port, creds, &command, workdir.as_deref(), &env)
-                        .await?;
+                let ssh_future =
+                    ssh::run_command(self.host_port, creds, &command, workdir.as_deref(), &env);
+
+                let result = tokio::time::timeout(timeout_duration, ssh_future)
+                    .await
+                    .map_err(|_| format!("Timed out after {}s", step.timeout))?
+                    ?;
 
                 // VM output stays default white
                 if !result.stdout.is_empty() {
