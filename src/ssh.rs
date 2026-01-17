@@ -12,7 +12,7 @@ const PORT_RANGE_START: u16 = 50000;
 const PORT_RANGE_END: u16 = 60000;
 
 /// Windows can take long as heck to boot. Wait timeout in seconds.
-pub const SSH_WAIT_TIMEOUT: u64 = 150;
+pub const SSH_WAIT_TIMEOUT: u64 = 300;
 
 /// Seconds between SSH poll attempts. 2 seems pretty reasonable.
 const SSH_POLL_INTERVAL: u64 = 2;
@@ -255,6 +255,23 @@ pub fn parse_copy_paths<'a>(from: &'a str, to: &'a str) -> (CopyDirection, &'a s
     }
 }
 
+fn expand_remote_tilde(path: &str, username: &str) -> String {
+    if path == "~" {
+        if username == "root" {
+            return "/root".to_string();
+        } else {
+            return format!("/home/{}", username);
+        }
+    } else if let Some(rest) = path.strip_prefix("~/") {
+        if username == "root" {
+            return format!("/root/{}", rest);
+        } else {
+            return format!("/home/{}/{}", username, rest);
+        }
+    }
+    return path.to_string();
+}
+
 /// SFTP file / dir copy
 pub async fn copy_files(
     port: u16,
@@ -264,6 +281,11 @@ pub async fn copy_files(
     ignore: &[String],
 ) -> Result<(), String> {
     let (direction, local_path, remote_path) = parse_copy_paths(from, to);
+
+    let remote_path = match direction {
+        CopyDirection::HostToVm => expand_remote_tilde(remote_path, &creds.user),
+        CopyDirection::VmToHost => expand_remote_tilde(remote_path, &creds.user),
+    };
 
     let handle = connect(port, creds).await?;
 
@@ -283,10 +305,10 @@ pub async fn copy_files(
 
     match direction {
         CopyDirection::HostToVm => {
-            copy_host_to_vm(&sftp, local_path, remote_path, ignore).await?;
+            copy_host_to_vm(&sftp, local_path, &remote_path, ignore).await?;
         }
         CopyDirection::VmToHost => {
-            copy_vm_to_host(&sftp, remote_path, local_path, ignore).await?;
+            copy_vm_to_host(&sftp, &remote_path, local_path, ignore).await?;
         }
     }
 

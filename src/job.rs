@@ -1,3 +1,5 @@
+use colored::Colorize;
+
 use crate::ssh::{self, SshAuth, SshCredentials};
 use crate::yaml;
 use std::collections::HashMap;
@@ -197,6 +199,8 @@ impl JobRunner {
 
     pub fn start_vm(&mut self) -> std::io::Result<()> {
         let mut cmd = self.build_qemu_cmd();
+        let fancy_cmd = format!("{:?}", cmd).replace("\"", "");
+        println!("{}", (&fancy_cmd as &str).dimmed());
         self.qemu_process = Some(cmd.spawn()?);
         return Ok(());
     }
@@ -349,6 +353,27 @@ impl JobRunner {
             }
             StepKind::Offline(offline) => {
                 let offline = *offline;
+                println!(
+                    "{}",
+                    format!("  Syncing filesystem before restart...", ).dimmed()
+                );
+
+                // sync fs writes
+                let sync_result = ssh::run_command(
+                    self.host_port,
+                    creds,
+                    "sync",
+                    None,
+                    &std::collections::HashMap::new(),
+                )
+                .await;
+
+                if sync_result.is_err() {
+                    println!("{}", "  Warning: sync command failed".yellow());
+                }
+
+                tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+
                 println!(
                     "{}",
                     format!("  Restarting VM (offline={})...", offline).dimmed()

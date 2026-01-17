@@ -50,6 +50,12 @@ sudo apt update
 sudo apt install openssh-server
 sudo systemctl enable ssh
 sudo systemctl start ssh
+
+sudo sysctl vm.mmap_rnd_bits
+# If you see a value of 32, it should be adjusted to 28 for thread sanitizer usage
+sudo nano /etc/sysctl.conf
+# Add the following to the file
+# vm.mmap_rnd_bits=28
 ```
 
 Connect to the VM with SSH:
