@@ -87,6 +87,18 @@ qemu-system-x86_64 \
 -device usb-tablet \
 -display gtk,grab-on-hover=on \
 -vga virtio
+
+qemu-system-x86_64 
+-machine q35 
+-cpu max 
+-name win-x64 
+-m 8192M 
+-smp 4
+-drive if=pflash,format=raw,readonly=on,file=/usr/share/qemu/OVMF.fd -drive file=/home/user/vm/windows-server.qcow2,format=qcow2 
+-accel kvm 
+-accel tcg 
+-netdev user,id=net0,hostfwd=tcp::PORT-:22 
+-device virtio-net-pci,netdev=net0
 ```
 
 ```sh
@@ -95,4 +107,36 @@ Set-SConfig -AutoLaunch $false
 New-Item -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Force
 Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon' -Name DisableCAD -Value 1
 Restart-Computer
+```
+
+Install Visual Studio Tools and MinGW
+
+```sh
+Invoke-WebRequest -Uri "https://aka.ms/vs/17/release/vs_buildtools.exe" -OutFile "$env:TEMP\vs_buildtools.exe"
+
+& "$env:TEMP\vs_buildtools.exe" --quiet --wait --norestart --nocache --installPath C:\BuildTools --add Microsoft.VisualStudio.Workload.VCTools  --add Microsoft.VisualStudio.Component.VC.Tools.ARM64 --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 --add Microsoft.VisualStudio.Component.Windows11SDK.22621
+
+Set-ExecutionPolicy Bypass -Scope Process -Force
+
+[System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
+Invoke-WebRequest -Uri "https://github.com/niXman/mingw-builds-binaries/releases/download/13.2.0-rt_v11-rev1/x86_64-13.2.0-release-posix-seh-ucrt-rt_v11-rev1.7z" -OutFile "$env:TEMP\mingw.7z"
+
+choco install 7zip -y
+
+& "C:\Program Files\7-Zip\7z.exe" x "$env:TEMP\mingw.7z" -o"C:\"
+
+[Environment]::SetEnvironmentVariable("Path", $env:Path + ";C:\mingw64\bin", [System.EnvironmentVariableTarget]::Machine)
+```
+
+```sh
+# You may need to refresh the PATH for mingw
+$env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+```
+
+Install CMake
+
+```sh
+choco install cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
 ```
