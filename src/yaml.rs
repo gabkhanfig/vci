@@ -43,6 +43,8 @@ pub struct Step {
 pub struct CopySpec {
     pub from: String,
     pub to: String,
+    #[serde(default)]
+    pub exclude: Vec<String>,
 }
 
 impl Step {

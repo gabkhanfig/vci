@@ -341,9 +341,9 @@ impl JobRunner {
             StepKind::Copy(copy_spec) => {
                 let from = copy_spec.from.clone();
                 let to = copy_spec.to.clone();
-                let ignore: Vec<String> = Vec::new(); // TODO: add ignore to CopySpec if needed
+                let exclude = &copy_spec.exclude;
 
-                let copy_future = ssh::copy_files(self.host_port, creds, &from, &to, &ignore);
+                let copy_future = ssh::copy_files(self.host_port, creds, &from, &to, exclude);
 
                 tokio::time::timeout(timeout_duration, copy_future)
                     .await
