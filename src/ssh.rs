@@ -2,6 +2,7 @@ use russh::keys::ssh_key;
 use russh::keys::PrivateKeyWithHashAlg;
 use russh::{client, ChannelMsg};
 use russh_sftp::client::SftpSession;
+use russh_sftp::protocol::OpenFlags;
 use std::collections::HashMap;
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
@@ -106,10 +107,15 @@ async fn connect(
     port: u16,
     creds: &SshCredentials,
 ) -> Result<client::Handle<ClientHandler>, String> {
-    let config = Arc::new(client::Config {
+    let mut config = client::Config {
         inactivity_timeout: Some(Duration::from_secs(30)),
         ..Default::default()
-    });
+    };
+
+    // https://github.com/Eugeny/tabby/issues/10780
+    config.preferred.compression = (&[russh::compression::NONE]).into();
+
+    let config = Arc::new(config);
 
     let addr = format!("127.0.0.1:{}", port);
     let mut handle = client::connect(config, &addr, ClientHandler)
@@ -372,10 +378,14 @@ async fn upload_file(sftp: &SftpSession, local: &Path, remote_path: &str) -> Res
     let contents = std::fs::read(local)
         .map_err(|e| format!("Failed to read local file {:?}: {}", local, e))?;
 
+    // https://github.com/Eugeny/russh/blob/main/russh/examples/sftp_client.rs
     let mut file = sftp
-        .create(remote_path)
+        .open_with_flags(
+            remote_path,
+            OpenFlags::CREATE | OpenFlags::TRUNCATE | OpenFlags::WRITE,
+        )
         .await
-        .map_err(|e| format!("Failed to create remote file {}: {}", remote_path, e))?;
+        .map_err(|e| format!("Failed to open remote file {}: {}", remote_path, e))?;
 
     file.write_all(&contents)
         .await
