@@ -382,12 +382,22 @@ async fn upload_file(sftp: &SftpSession, local: &Path, remote_path: &str) -> Res
     return Ok(());
 }
 
+fn detect_path_separator(path: &str) -> &'static str {
+    if path.contains('\\') {
+        return "\\";
+    } else {
+        return "/";
+    }
+}
+
 async fn upload_dir_recursive(
     sftp: &SftpSession,
     local_dir: &Path,
     remote_dir: &str,
     ignore: &[String],
 ) -> Result<(), String> {
+    let sep = detect_path_separator(remote_dir);
+
     if !sftp.try_exists(remote_dir).await.unwrap_or(false) {
         sftp.create_dir(remote_dir)
             .await
@@ -407,7 +417,7 @@ async fn upload_dir_recursive(
             continue;
         }
 
-        let remote_path = format!("{}/{}", remote_dir.trim_end_matches('/'), file_name_str);
+        let remote_path = format!("{}{}{}", remote_dir.trim_end_matches(&['/', '\\'][..]), sep, file_name_str);
 
         if local_path.is_file() {
             upload_file(sftp, &local_path, &remote_path).await?;
@@ -481,6 +491,8 @@ async fn download_dir_recursive(
     local_dir: &str,
     ignore: &[String],
 ) -> Result<(), String> {
+    let sep = detect_path_separator(remote_dir);
+
     std::fs::create_dir_all(local_dir)
         .map_err(|e| format!("Failed to create local dir {}: {}", local_dir, e))?;
 
@@ -501,7 +513,7 @@ async fn download_dir_recursive(
             continue;
         }
 
-        let remote_path = format!("{}/{}", remote_dir.trim_end_matches('/'), file_name);
+        let remote_path = format!("{}{}{}", remote_dir.trim_end_matches(&['/', '\\'][..]), sep, file_name);
         let local_path = format!("{}/{}", local_dir.trim_end_matches('/'), file_name);
 
         let metadata = sftp
