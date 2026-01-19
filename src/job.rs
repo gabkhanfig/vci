@@ -16,6 +16,24 @@ pub fn expand_path(path: &str) -> PathBuf {
     PathBuf::from(path)
 }
 
+pub fn expand_path_in_string(s: &str) -> String {
+    if let Some(idx) = s.find("~/") {
+        if let Some(home) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+            let home_str = home.to_string_lossy();
+            let before = &s[..idx];
+            let after = &s[idx + 2..];
+            return format!(
+                "{}{}{}{}",
+                before,
+                home_str,
+                std::path::MAIN_SEPARATOR,
+                after
+            );
+        }
+    }
+    s.to_string()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Arch {
     X64,
@@ -81,6 +99,11 @@ pub struct Job {
     /// Port within the VM that SSH accesses.
     pub port: u16,
     pub uefi_firmware: Option<PathBuf>,
+    pub uefi: Option<yaml::UefiFirmware>,
+    pub cpu_model: Option<String>,
+    pub additional_drives: Option<Vec<String>>,
+    pub additional_devices: Option<Vec<String>>,
+    pub qemu_args: Option<Vec<String>>,
     pub steps: Vec<Step>,
 }
 
@@ -125,6 +148,7 @@ pub struct JobRunner {
     pub job: Job,
     pub host_port: u16,
     pub temp_image: PathBuf,
+    pub temp_vars: Option<PathBuf>,
     qemu_process: Option<Child>,
     offline: bool,
     guest_os: Option<ssh::GuestOs>,
@@ -143,12 +167,24 @@ impl JobRunner {
         let source_image = expand_path(&job.image);
         std::fs::copy(&source_image, &temp_image)?;
 
+        // Temp UEFI vars if doing the split firmware code + vars
+        let temp_vars = if let Some(yaml::UefiFirmware::Split(ref split)) = job.uefi {
+            let vars_name = format!("vci-{}-{}-VARS.fd", host_port, &job.name);
+            let temp_vars_path = temp_path(&vars_name);
+            let source_vars = expand_path(&split.vars);
+            std::fs::copy(&source_vars, &temp_vars_path)?;
+            Some(temp_vars_path)
+        } else {
+            None
+        };
+
         let offline = matches!(job.steps[0].kind, StepKind::Offline(true));
 
         return Ok(Self {
             job,
             host_port,
             temp_image,
+            temp_vars,
             qemu_process: None,
             offline,
             guest_os: None,
@@ -160,20 +196,59 @@ impl JobRunner {
         let mut cmd = std::process::Command::new(self.job.arch.qemu_binary());
 
         cmd.arg("-machine").arg(self.job.arch.qemu_machine());
-        cmd.arg("-cpu").arg(self.job.arch.qemu_cpu());
+
+        if let Some(ref cpu_model) = self.job.cpu_model {
+            cmd.arg("-cpu").arg(cpu_model);
+        } else {
+            cmd.arg("-cpu").arg(self.job.arch.qemu_cpu());
+        }
+
         cmd.arg("-name").arg(&self.job.name);
         cmd.arg("-m").arg(format!("{}M", self.job.memory));
         cmd.arg("-smp").arg(self.job.cpus.to_string());
 
-        if let Some(ref firmware) = self.job.uefi_firmware {
-            cmd.arg("-drive").arg(format!(
-                "if=pflash,format=raw,readonly=on,file={}",
-                firmware.display()
-            ));
+        if let Some(ref uefi) = self.job.uefi {
+            match uefi {
+                yaml::UefiFirmware::Boolean(_) | yaml::UefiFirmware::Path(_) => {
+                    // Monolithic UEFI (use processed uefi_firmware path)
+                    if let Some(ref firmware_path) = self.job.uefi_firmware {
+                        cmd.arg("-drive").arg(format!(
+                            "if=pflash,format=raw,readonly=on,file={}",
+                            firmware_path.display()
+                        ));
+                    }
+                }
+                yaml::UefiFirmware::Split(split) => {
+                    // Split UEFI: code (readonly) + vars (writable)
+                    let code_path = expand_path(&split.code);
+                    cmd.arg("-drive").arg(format!(
+                        "if=pflash,format=raw,unit=0,readonly=on,file={}",
+                        code_path.display()
+                    ));
+                    if let Some(ref temp_vars) = self.temp_vars {
+                        cmd.arg("-drive").arg(format!(
+                            "if=pflash,format=raw,unit=1,file={}",
+                            temp_vars.display()
+                        ));
+                    }
+                }
+            }
         }
 
-        cmd.arg("-drive")
-            .arg(format!("file={},format=qcow2", self.temp_image.display()));
+        // Some VMs need additional drives like OpenCore bootloader for macOS
+        if let Some(ref additional_drives) = self.job.additional_drives {
+            for drive in additional_drives {
+                let expanded_drive = expand_path_in_string(drive);
+                cmd.arg("-drive").arg(expanded_drive);
+            }
+        }
+
+        // main disk
+        cmd.arg("-drive").arg(format!(
+            "id=SystemDisk,if=none,file={},format=qcow2",
+            self.temp_image.display()
+        ));
+
         cmd.arg("-display").arg("none");
 
         // hardware accel if possible
@@ -202,6 +277,21 @@ impl JobRunner {
         };
         cmd.arg("-netdev").arg(netdev);
         cmd.arg("-device").arg("virtio-net-pci,netdev=net0");
+
+        if let Some(ref additional_devices) = self.job.additional_devices {
+            for device in additional_devices {
+                let expanded_device = expand_path_in_string(device);
+                cmd.arg("-device").arg(expanded_device);
+            }
+        }
+
+        // edge case raw args
+        if let Some(ref qemu_args) = self.job.qemu_args {
+            for arg in qemu_args {
+                let expanded_arg = expand_path_in_string(arg);
+                cmd.arg(expanded_arg);
+            }
+        }
 
         return cmd;
     }
@@ -246,6 +336,9 @@ impl JobRunner {
 
     fn cleanup_temp_image(&self) {
         let _ = std::fs::remove_file(&self.temp_image);
+        if let Some(ref temp_vars) = self.temp_vars {
+            let _ = std::fs::remove_file(temp_vars);
+        }
     }
 
     fn get_credentials(&self) -> SshCredentials {

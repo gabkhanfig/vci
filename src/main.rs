@@ -407,6 +407,25 @@ fn extract_yaml_workflows(args: cli::RunArgs) -> Vec<job::Job> {
                 }
                 Some(expanded)
             }
+            Some(yaml::UefiFirmware::Split(split)) => {
+                let code_path = job::expand_path(&split.code);
+                let vars_path = job::expand_path(&split.vars);
+                if !code_path.exists() {
+                    panic!(
+                        "UEFI code file not found: {} (expanded to {})",
+                        split.code,
+                        code_path.display()
+                    );
+                }
+                if !vars_path.exists() {
+                    panic!(
+                        "UEFI vars file not found: {} (expanded to {})",
+                        split.vars,
+                        vars_path.display()
+                    );
+                }
+                None
+            }
             Some(yaml::UefiFirmware::Boolean(false)) | None => None,
         };
 
@@ -421,6 +440,11 @@ fn extract_yaml_workflows(args: cli::RunArgs) -> Vec<job::Job> {
             key: job_key,
             port: job_port,
             uefi_firmware: job_uefi_firmware,
+            uefi: pair.1.uefi.clone(),
+            cpu_model: pair.1.cpu_model.clone(),
+            additional_drives: pair.1.additional_drives.clone(),
+            additional_devices: pair.1.additional_devices.clone(),
+            qemu_args: pair.1.qemu_args.clone(),
             steps: job_steps,
         });
     }

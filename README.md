@@ -130,11 +130,93 @@ job-name:
   pass: secret                      # optional: SSH password (alternative to key)
   key: ~/.ssh/id_ed25519            # optional: SSH private key (alternative to pass)
   port: 22                          # optional: SSH port
+  uefi: true                        # optional: UEFI firmware (see UEFI section below)
   steps:                            # List of steps to execute
     - ...
 ```
 
 `arch` may be one of: `x86_64`, `x64`, `amd64`, `aarch64`, `arm64`, `riscv64`
+
+##### UEFI Firmware Configuration
+
+The `uefi` field supports three modes:
+
+**Auto-detect system UEFI:**
+
+```yaml
+uefi: true    # finds system OVMF.md
+uefi: false   # no firmware
+```
+
+**Monolithic UEFI file:**
+
+```yaml
+uefi: /usr/share/ovmf/OVMF.fd    # monolithic file used by some stuff
+```
+
+**Split code/vars (recommended for macOS, Windows, Secure Boot):**
+
+```yaml
+uefi:
+  code: ~/path/to/OVMF_CODE.fd    # readonly firmware code
+  vars: ~/path/to/OVMF_VARS.fd    # writeable NVRAM variables (gets copied)
+```
+
+The split mode adheres to [UEFI pflash conventions](https://github.com/tianocore/tianocore.github.io/wiki/How-to-run-OVMF), creating a temporary copy of the vars file for each VM instance.
+
+##### Advanced QEMU Configuration
+
+For advanced use cases like [macOS virtualization in QEMU](docs/mac_x64_setup.md), more fields are available:
+
+```yaml
+job-name:
+  # other config
+
+  # set the CPU model
+  cpu_model: "Haswell-v2,vendor=GenuineIntel,vmware-cpuid-freq=on"
+
+  # additional QEMU drive arguments, such as OpenCore for the again mac stuff. Adds more -drive
+  additional_drives:
+    - "id=BootLoader,if=none,format=qcow2,file=~/path/to/OpenCore.qcow2"
+
+  # extra devices. Adds more -device
+  additional_devices:
+    - "isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc"
+    - "ahci,id=ahci"
+    - "ide-hd,bus=ahci.0,drive=BootLoader,bootindex=0"
+    - "virtio-blk-pci,drive=SystemDisk"
+
+  # raw QEMU arguments for edge cases
+  qemu_args:
+    - "-k"
+    - "en-us"
+```
+
+**macOS Example:**
+
+See [`docs/mac_x64_setup.md`](docs/mac_x64_setup.md) for a complete macOS CI/CD setup example.
+
+```yaml
+macos-monterey:
+  image: ~/vm/macos/disk.qcow2
+  uefi:
+    code: ~/vm/macos/OVMF_CODE.fd
+    vars: ~/vm/macos/OVMF_VARS-1920x1080.fd
+  cpu_model: "Haswell-v2,vendor=GenuineIntel,vmware-cpuid-freq=on"
+  additional_drives:
+    - "id=BootLoader,if=none,format=qcow2,file=~/vm/macos/OpenCore.qcow2"
+  additional_devices:
+    - "isa-applesmc,osk=ourhardworkbythesewordsguardedpleasedontsteal(c)AppleComputerInc"
+    - "ahci,id=ahci"
+    - "ide-hd,bus=ahci.0,drive=BootLoader,bootindex=0"
+    - "virtio-blk-pci,drive=SystemDisk"
+  cpus: 4
+  memory: 16G
+  user: dev
+  pass: devmac
+  steps:
+    - run: clang
+```
 
 #### Step Types
 
@@ -159,6 +241,10 @@ job-name:
   copy:
     from: ./src/               # required: source path
     to: vm:/app/src/           # required: destination (vm: prefix for VM paths)
+    exclude:                   # optional: exclude patterns
+      - "*.o"
+      - "*.a"
+      - "build/"
   timeout: 5m                  # optional: step timeout
   continue_on_error: false     # optional: continue if step fails (default: false)
 

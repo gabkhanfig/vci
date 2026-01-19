@@ -4,11 +4,21 @@ use std::collections::HashMap;
 
 pub type Workflow = HashMap<String, Job>;
 
+// https://www.linux-kvm.org/downloads/lersek/ovmf-whitepaper-c770f8c.txt
+// https://github.com/tianocore/tianocore.github.io/wiki/How-to-run-OVMF
+// The UEFI firmware can be split into two sections
+#[derive(Debug, Clone, Deserialize)]
+pub struct UefiSplit {
+    pub code: String,
+    pub vars: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
 pub enum UefiFirmware {
     Boolean(bool),
     Path(String),
+    Split(UefiSplit),
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -22,6 +32,10 @@ pub struct Job {
     pub key: Option<String>,
     pub port: Option<u16>,
     pub uefi: Option<UefiFirmware>,
+    pub cpu_model: Option<String>,
+    pub additional_drives: Option<Vec<String>>,
+    pub additional_devices: Option<Vec<String>>,
+    pub qemu_args: Option<Vec<String>>,
     pub steps: Vec<Step>,
 }
 
