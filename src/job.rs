@@ -248,11 +248,19 @@ impl JobRunner {
             }
         }
 
-        // main disk
-        cmd.arg("-drive").arg(format!(
-            "id=SystemDisk,if=none,file={},format=qcow2",
-            self.temp_image.display()
-        ));
+        // main disk 
+        // if=none only when additional_devices will attach it
+        if self.job.additional_devices.is_some() {
+            cmd.arg("-drive").arg(format!(
+                "id=SystemDisk,if=none,file={},format=qcow2",
+                self.temp_image.display()
+            ));
+        } else {
+            cmd.arg("-drive").arg(format!(
+                "file={},format=qcow2",
+                self.temp_image.display()
+            ));
+        }
 
         cmd.arg("-display").arg("none");
 
