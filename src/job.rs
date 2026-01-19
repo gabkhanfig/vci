@@ -154,6 +154,7 @@ pub struct JobRunner {
     pub host_port: u16,
     pub temp_image: PathBuf,
     pub temp_vars: Option<PathBuf>,
+    pub temp_additional_drives: Vec<(String, PathBuf)>, // (original_spec, temp_path)
     qemu_process: Option<Child>,
     offline: bool,
     guest_os: Option<ssh::GuestOs>,
@@ -183,6 +184,34 @@ impl JobRunner {
             None
         };
 
+        // Other additional drives must be copied, like OpenCore.qcow2 on mac
+        let mut temp_additional_drives = Vec::new();
+        if let Some(ref drives) = job.additional_drives {
+            for (idx, drive_spec) in drives.iter().enumerate() {
+                if let Some(file_start) = drive_spec.find("file=") {
+                    let after_file = &drive_spec[file_start + 5..];
+                    let file_path = if let Some(comma_pos) = after_file.find(',') {
+                        &after_file[..comma_pos]
+                    } else {
+                        after_file
+                    };
+
+                    let source_path = expand_path(file_path);
+                    let temp_name = format!("vci-{}-{}-drive-{}.qcow2", host_port, &job.name, idx);
+                    let temp_path = temp_path(&temp_name);
+                    std::fs::copy(&source_path, &temp_path)?;
+
+                    let updated_spec = drive_spec.replace(
+                        &format!("file={}", file_path),
+                        &format!("file={}", temp_path.display())
+                    );
+                    temp_additional_drives.push((updated_spec, temp_path));
+                } else {
+                    temp_additional_drives.push((drive_spec.clone(), PathBuf::new()));
+                }
+            }
+        }
+
         let offline = matches!(job.steps[0].kind, StepKind::Offline(true));
 
         return Ok(Self {
@@ -190,6 +219,7 @@ impl JobRunner {
             host_port,
             temp_image,
             temp_vars,
+            temp_additional_drives,
             qemu_process: None,
             offline,
             guest_os: None,
@@ -241,11 +271,8 @@ impl JobRunner {
         }
 
         // Some VMs need additional drives like OpenCore bootloader for macOS
-        if let Some(ref additional_drives) = self.job.additional_drives {
-            for drive in additional_drives {
-                let expanded_drive = expand_path_in_string(drive);
-                cmd.arg("-drive").arg(expanded_drive);
-            }
+        for (drive_spec, _) in &self.temp_additional_drives {
+            cmd.arg("-drive").arg(drive_spec);
         }
 
         // main disk 
@@ -351,6 +378,11 @@ impl JobRunner {
         let _ = std::fs::remove_file(&self.temp_image);
         if let Some(ref temp_vars) = self.temp_vars {
             let _ = std::fs::remove_file(temp_vars);
+        }
+        for (_, temp_path) in &self.temp_additional_drives {
+            if !temp_path.as_os_str().is_empty() {
+                let _ = std::fs::remove_file(temp_path);
+            }
         }
     }
 
