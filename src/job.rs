@@ -34,6 +34,11 @@ pub fn expand_path_in_string(s: &str) -> String {
     s.to_string()
 }
 
+/// Neat
+fn is_github_actions() -> bool {
+    std::env::var("GITHUB_ACTIONS").is_ok()
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Arch {
     X64,
@@ -387,12 +392,20 @@ impl JobRunner {
                 .unwrap_or_else(|| format!("Step {}", i + 1));
             let continue_on_error = self.job.steps[i].continue_on_error;
 
-            println!(
-                "{}",
-                format!("Step {}: {}", i + 1, step_name).yellow().bold()
-            );
+            if is_github_actions() {
+                println!("::group::VCI Step {}: {}", i + 1, step_name);
+            } else {
+                println!(
+                    "{}",
+                    format!("Step {}: {}", i + 1, step_name).yellow().bold()
+                );
+            }
 
             let result = self.run_step(i, &creds).await;
+
+            if is_github_actions() {
+                println!("::endgroup::");
+            }
 
             match result {
                 Ok(_) => (),
@@ -437,14 +450,6 @@ impl JobRunner {
                         );
                         format!("Timed out after {}s", step.timeout)
                     })??;
-
-                // VM output stays default white
-                if !result.stdout.is_empty() {
-                    print!("{}", result.stdout);
-                }
-                if !result.stderr.is_empty() {
-                    eprint!("{}", result.stderr);
-                }
 
                 if result.exit_code != 0 {
                     return Err(format!("Exit code: {}", result.exit_code));
