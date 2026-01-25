@@ -572,6 +572,12 @@ impl JobRunner {
                             .dimmed()
                     );
 
+                    let target_dir = if to.starts_with("vm:") {
+                        &to[3..]
+                    } else {
+                        &to
+                    };
+
                     let convert_script = r#"
                         $utf8NoBom = New-Object System.Text.UTF8Encoding $false
                         $extensions = '*.c','*.cpp','*.h','*.hpp','*.cc','*.cxx','*.hxx'
@@ -593,7 +599,7 @@ impl JobRunner {
                         self.host_port,
                         creds,
                         convert_script,
-                        None,
+                        Some(target_dir),
                         &std::collections::HashMap::new(),
                     )
                     .await;
