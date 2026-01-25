@@ -328,7 +328,12 @@ pub async fn run_command_binary(
     })
 }
 
-fn build_command(command: &str, workdir: Option<&str>, env: &HashMap<String, String>, guest_os: Option<GuestOs>) -> String {
+fn build_command(
+    command: &str,
+    workdir: Option<&str>,
+    env: &HashMap<String, String>,
+    guest_os: Option<GuestOs>,
+) -> String {
     let mut parts = Vec::new();
 
     let is_windows = matches!(guest_os, Some(GuestOs::Windows));

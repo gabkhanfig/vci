@@ -207,7 +207,7 @@ impl JobRunner {
 
                     let updated_spec = drive_spec.replace(
                         &format!("file={}", file_path),
-                        &format!("file={}", temp_path.display())
+                        &format!("file={}", temp_path.display()),
                     );
                     temp_additional_drives.push((updated_spec, temp_path));
                 } else {
@@ -291,7 +291,7 @@ impl JobRunner {
             cmd.arg("-drive").arg(drive_spec);
         }
 
-        // main disk 
+        // main disk
         // if=none only when additional_devices will attach it
         if self.job.additional_devices.is_some() {
             cmd.arg("-drive").arg(format!(
@@ -299,10 +299,8 @@ impl JobRunner {
                 self.temp_image.display()
             ));
         } else {
-            cmd.arg("-drive").arg(format!(
-                "file={},format=qcow2",
-                self.temp_image.display()
-            ));
+            cmd.arg("-drive")
+                .arg(format!("file={},format=qcow2", self.temp_image.display()));
         }
 
         cmd.arg("-display").arg("none");
@@ -338,8 +336,7 @@ impl JobRunner {
         if let Some(ref socket_path) = self.tpm_socket_path {
             cmd.arg("-chardev")
                 .arg(format!("socket,id=chrtpm,path={}", socket_path.display()));
-            cmd.arg("-tpmdev")
-                .arg("emulator,id=tpm0,chardev=chrtpm");
+            cmd.arg("-tpmdev").arg("emulator,id=tpm0,chardev=chrtpm");
             cmd.arg("-device").arg("tpm-tis,tpmdev=tpm0");
         }
 
@@ -362,7 +359,9 @@ impl JobRunner {
     }
 
     pub fn start_vm(&mut self) -> std::io::Result<()> {
-        if let (Some(ref state_dir), Some(ref socket_path)) = (&self.tpm_state_dir, &self.tpm_socket_path) {
+        if let (Some(ref state_dir), Some(ref socket_path)) =
+            (&self.tpm_state_dir, &self.tpm_socket_path)
+        {
             let mut tpm_cmd = std::process::Command::new("swtpm");
             tpm_cmd
                 .arg("socket")
@@ -572,11 +571,7 @@ impl JobRunner {
                             .dimmed()
                     );
 
-                    let target_dir = if to.starts_with("vm:") {
-                        &to[3..]
-                    } else {
-                        &to
-                    };
+                    let target_dir = if to.starts_with("vm:") { &to[3..] } else { &to };
 
                     let convert_script = r#"
                         $utf8NoBom = New-Object System.Text.UTF8Encoding $false
@@ -631,17 +626,28 @@ impl JobRunner {
                     _ => "sync", // Unix/Linux/macOS
                 };
 
-                let sync_result = ssh::run_command(
+                let empty_env = std::collections::HashMap::new();
+                let sync_future = ssh::run_command_with_os(
                     self.host_port,
                     creds,
                     sync_cmd,
                     None,
-                    &std::collections::HashMap::new(),
-                )
-                .await;
+                    &empty_env,
+                    self.guest_os,
+                );
 
-                if sync_result.is_err() {
-                    println!("{}", "  Warning: sync command failed".yellow());
+                let sync_result =
+                    tokio::time::timeout(tokio::time::Duration::from_secs(30), sync_future).await;
+
+                match sync_result {
+                    Ok(Ok(_)) => {}
+                    Ok(Err(e)) => println!(
+                        "{}",
+                        format!("  Warning: sync command failed: {}", e).yellow()
+                    ),
+                    Err(_) => {
+                        println!("{}", "  Warning: sync command timed out after 30s".yellow())
+                    }
                 }
 
                 let wait_time = match self.guest_os {
