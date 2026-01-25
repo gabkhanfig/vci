@@ -391,6 +391,11 @@ impl JobRunner {
         if let (Some(ref state_dir), Some(ref socket_path)) =
             (&self.tpm_state_dir, &self.tpm_socket_path)
         {
+            // Clean up any leftover socket from previous run
+            if socket_path.exists() {
+                let _ = std::fs::remove_file(socket_path);
+            }
+
             let mut tpm_cmd = std::process::Command::new("swtpm");
             tpm_cmd
                 .arg("socket")
@@ -403,8 +408,20 @@ impl JobRunner {
 
             self.tpm_process = Some(tpm_cmd.spawn()?);
 
-            // Give swtpm a moment to initialize
-            std::thread::sleep(std::time::Duration::from_millis(100));
+            std::thread::sleep(std::time::Duration::from_millis(500));
+
+            let mut retries = 0;
+            while !socket_path.exists() && retries < 10 {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                retries += 1;
+            }
+
+            if !socket_path.exists() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::Other,
+                    format!("TPM socket not created after 1s: {}", socket_path.display()),
+                ));
+            }
         }
 
         let mut cmd = self.build_qemu_cmd();
