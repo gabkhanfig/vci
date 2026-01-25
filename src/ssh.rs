@@ -161,11 +161,26 @@ async fn connect(
 }
 
 pub async fn detect_guest_os(port: u16, creds: &SshCredentials) -> GuestOs {
-    // Powershell usage is assumed nowadays, so try this
-    if let Ok(result) = run_command(port, creds, "$env:OS", None, &HashMap::new()).await {
-        if result.stdout.trim().contains("Windows_NT") {
-            eprintln!("[OS Detection] Detected: Windows");
-            return GuestOs::Windows;
+    for attempt in 1..=3 {
+        if attempt > 1 {
+            eprintln!("[OS Detection] Retry attempt {}/3", attempt);
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        }
+
+        match run_command(port, creds, "$env:OS", None, &HashMap::new()).await {
+            Ok(result) => {
+                if result.stdout.trim().contains("Windows_NT") {
+                    eprintln!("[OS Detection] Detected: Windows (attempt {})", attempt);
+                    return GuestOs::Windows;
+                }
+                break;
+            }
+            Err(e) => {
+                eprintln!("[OS Detection] Windows check failed (attempt {}): {}", attempt, e);
+                if attempt == 3 {
+                    break;
+                }
+            }
         }
     }
 

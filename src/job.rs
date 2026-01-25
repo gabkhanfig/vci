@@ -504,7 +504,28 @@ impl JobRunner {
             }
         }
 
-        self.guest_os = Some(ssh::detect_guest_os(self.host_port, &creds).await);
+        tokio::time::sleep(tokio::time::Duration::from_secs(3)).await;
+
+        let os_detect_future = ssh::detect_guest_os(self.host_port, &creds);
+        let guest_os = match tokio::time::timeout(
+            tokio::time::Duration::from_secs(60),
+            os_detect_future,
+        )
+        .await
+        {
+            Ok(os) => {
+                println!("{}", format!("  Detected OS: {:?}", os).dimmed());
+                os
+            }
+            Err(_) => {
+                println!(
+                    "{}",
+                    "  OS detection timed out, assuming Windows".yellow()
+                );
+                ssh::GuestOs::Windows
+            }
+        };
+        self.guest_os = Some(guest_os);
 
         for i in 0..self.job.steps.len() {
             let step_name = self.job.steps[i]
