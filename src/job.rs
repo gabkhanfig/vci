@@ -445,6 +445,14 @@ impl JobRunner {
             let _ = process.wait();
         }
         self.tpm_process = None;
+
+        if let Some(ref socket_path) = self.tpm_socket_path {
+            if socket_path.exists() {
+                let _ = std::fs::remove_file(socket_path);
+            }
+        }
+
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
 
     pub fn restart_vm(&mut self, offline: bool) -> std::io::Result<()> {
