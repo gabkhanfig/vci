@@ -51,6 +51,8 @@ fn main() {
 fn run_jobs(jobs: Vec<job::Job>) {
     use colored::Colorize;
 
+    ssh::cleanup_stale_port_locks();
+
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()

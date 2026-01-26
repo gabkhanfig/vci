@@ -26,14 +26,48 @@ pub const SSH_WAIT_TIMEOUT: u64 = 300;
 /// Seconds between SSH poll attempts. 2 seems pretty reasonable.
 const SSH_POLL_INTERVAL: u64 = 2;
 
-/// Retains connection
-pub fn find_available_port() -> Option<(u16, TcpListener)> {
+pub fn find_available_port() -> Option<(u16, std::fs::File)> {
     for port in PORT_RANGE_START..=PORT_RANGE_END {
-        if let Ok(listener) = TcpListener::bind(("127.0.0.1", port)) {
-            return Some((port, listener));
+        let lock_path = get_port_lock_path(port);
+        match std::fs::OpenOptions::new()
+            .write(true)
+            .create_new(true) // fail if file exists
+            .open(&lock_path)
+        {
+            Ok(lock_file) => {
+                return Some((port, lock_file));
+            }
+            Err(_) => {
+                continue;
+            }
         }
     }
     return None;
+}
+
+fn get_port_lock_path(port: u16) -> std::path::PathBuf {
+    let temp_dir = std::env::temp_dir();
+    temp_dir.join(format!("vci-port-{}.lock", port))
+}
+
+pub fn cleanup_stale_port_locks() {
+    let temp_dir = std::env::temp_dir();
+    if let Ok(entries) = std::fs::read_dir(&temp_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                if name.starts_with("vci-port-") && name.ends_with(".lock") {
+                    if let Some(port_str) = name.strip_prefix("vci-port-").and_then(|s| s.strip_suffix(".lock")) {
+                        if let Ok(port) = port_str.parse::<u16>() {
+                            if is_port_available(port) {
+                                let _ = std::fs::remove_file(&path);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn is_port_available(port: u16) -> bool {

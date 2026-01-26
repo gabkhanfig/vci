@@ -191,14 +191,14 @@ pub struct JobRunner {
     tpm_socket_path: Option<PathBuf>,
     offline: bool,
     guest_os: Option<ssh::GuestOs>,
-    _port_reservation: Option<std::net::TcpListener>,
+    _port_lock: Option<std::fs::File>,
 }
 
 impl JobRunner {
     pub fn new(
         job: Job,
         host_port: u16,
-        port_reservation: std::net::TcpListener,
+        port_lock: std::fs::File,
     ) -> std::io::Result<Self> {
         let name = temp_image_name(host_port, &job.name);
         let temp_image = temp_path(&name);
@@ -268,7 +268,7 @@ impl JobRunner {
             tpm_socket_path,
             offline,
             guest_os: None,
-            _port_reservation: Some(port_reservation),
+            _port_lock: Some(port_lock),
         });
     }
 
@@ -428,7 +428,7 @@ impl JobRunner {
         let fancy_cmd = format!("{:?}", cmd).replace("\"", "");
         println!("{}", (&fancy_cmd as &str).dimmed());
         self.qemu_process = Some(cmd.spawn()?);
-        self._port_reservation = None;
+        // Keep _port_lock alive for entire job duration
         return Ok(());
     }
 
@@ -501,6 +501,11 @@ impl JobRunner {
         if let Some(ref tpm_state_dir) = self.tpm_state_dir {
             let _ = std::fs::remove_dir_all(tpm_state_dir);
         }
+    }
+
+    fn cleanup_port_lock(&self) {
+        let lock_path = std::env::temp_dir().join(format!("vci-port-{}.lock", self.host_port));
+        let _ = std::fs::remove_file(lock_path);
     }
 
     fn get_credentials(&self) -> SshCredentials {
@@ -764,14 +769,15 @@ impl Drop for JobRunner {
     fn drop(&mut self) {
         self.stop_vm();
         self.cleanup_temp_image();
+        self.cleanup_port_lock();
     }
 }
 
 pub async fn run_job(job: Job) -> Result<(), String> {
-    let (host_port, port_reservation) =
+    let (host_port, port_lock) =
         ssh::find_available_port().ok_or_else(|| "No available ports in range".to_string())?;
 
-    let mut runner = JobRunner::new(job, host_port, port_reservation)
+    let mut runner = JobRunner::new(job, host_port, port_lock)
         .map_err(|e| format!("Failed to create job runner: {}", e))?;
 
     crate::set_cleanup_path(runner.temp_image.clone());
