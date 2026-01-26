@@ -159,9 +159,12 @@ fn create_backing_file(
     let output = std::process::Command::new(&qemu_img)
         .args([
             "create",
-            "-f", "qcow2",
-            "-b", &source_path.display().to_string(),
-            "-F", "qcow2",
+            "-f",
+            "qcow2",
+            "-b",
+            &source_path.display().to_string(),
+            "-F",
+            "qcow2",
             &dest_path.display().to_string(),
         ])
         .output()?;
@@ -195,11 +198,7 @@ pub struct JobRunner {
 }
 
 impl JobRunner {
-    pub fn new(
-        job: Job,
-        host_port: u16,
-        port_lock: std::fs::File,
-    ) -> std::io::Result<Self> {
+    pub fn new(job: Job, host_port: u16, port_lock: std::fs::File) -> std::io::Result<Self> {
         let name = temp_image_name(host_port, &job.name);
         let temp_image = temp_path(&name);
 
@@ -559,10 +558,7 @@ impl JobRunner {
                 os
             }
             Err(_) => {
-                println!(
-                    "{}",
-                    "  OS detection timed out, assuming Windows".yellow()
-                );
+                println!("{}", "  OS detection timed out, assuming Windows".yellow());
                 ssh::GuestOs::Windows
             }
         };

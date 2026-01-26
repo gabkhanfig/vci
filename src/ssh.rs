@@ -52,14 +52,19 @@ fn get_port_lock_path(port: u16) -> std::path::PathBuf {
 
 pub fn cleanup_stale_port_locks() {
     let temp_dir = std::env::temp_dir();
+    let one_hour_ago = std::time::SystemTime::now()
+        .checked_sub(std::time::Duration::from_secs(3600))
+        .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+
     if let Ok(entries) = std::fs::read_dir(&temp_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
                 if name.starts_with("vci-port-") && name.ends_with(".lock") {
-                    if let Some(port_str) = name.strip_prefix("vci-port-").and_then(|s| s.strip_suffix(".lock")) {
-                        if let Ok(port) = port_str.parse::<u16>() {
-                            if is_port_available(port) {
+                    // Only delete if file is very old (likely from crash)
+                    if let Ok(metadata) = std::fs::metadata(&path) {
+                        if let Ok(modified) = metadata.modified() {
+                            if modified < one_hour_ago {
                                 let _ = std::fs::remove_file(&path);
                             }
                         }
@@ -210,7 +215,10 @@ pub async fn detect_guest_os(port: u16, creds: &SshCredentials) -> GuestOs {
                 break;
             }
             Err(e) => {
-                eprintln!("[OS Detection] Windows check failed (attempt {}): {}", attempt, e);
+                eprintln!(
+                    "[OS Detection] Windows check failed (attempt {}): {}",
+                    attempt, e
+                );
                 if attempt == 3 {
                     break;
                 }
