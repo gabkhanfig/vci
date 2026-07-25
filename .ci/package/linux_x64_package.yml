@@ -1,25 +1,40 @@
 ubuntu-server-x64:
-    image: ubuntu-server-x64
-    cpus: 4
-    memory: 12G
-    steps:
+  image: ubuntu-server-x64
+  cpus: 4
+  memory: 12G
+  steps:
     - name: Copy Files
       copy:
         from: ./
         to: vm:~/
         exclude:
-            - .git
-            - .github
-            - docs
-            - target
+          - .git
+          - .github
+          - docs
+          - target
 
     - name: Install Rust
       run: curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
     - name: Install Node and NPM
+      # https://nodejs.org/dist/v24.16.0/SHASUMS256.txt
       run: |
-        sudo apt update
-        sudo apt install  -y -qq nodejs npm
+        set -euo pipefail
+        NODE_VER=v24.16.0
+        NODE_TARBALL=node-${NODE_VER}-linux-x64.tar.xz
+        NODE_SHA256=d804845d34eddc21dc1092b519d643ef40b1f58ec5dec5c22b1f4bd8fabde6c9
+        curl --proto '=https' --tlsv1.2 -fsSLO "https://nodejs.org/dist/${NODE_VER}/${NODE_TARBALL}"
+        echo "${NODE_SHA256}  ${NODE_TARBALL}" | shasum -a 256 -c -
+        sudo tar -xJf "${NODE_TARBALL}" -C /usr/local --strip-components=1
+        rm -f "${NODE_TARBALL}"
+
+    - name: Verify npm Supports Release-Age Cooldown
+      # npm must be >= 11.10.0 because that has `min-release-age`. Anything lower will just silently ignore, not acceptable.
+      run: |
+        set -euo pipefail
+        node --version
+        npm --version
+        npm --version | awk -F. '($1<11)||($1==11 && $2<10){ print "npm "$0" is too old for min-release-age (need >= 11.10.0)"; exit 1 }'
 
     - name: Install NPM Dependencies
       run: |

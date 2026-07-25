@@ -65,7 +65,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Run VirtCI build
-        run: exec cargo run -- run package/linux_x64_package.yml
+        run: exec cargo run -- run .ci/package/linux_x64_package.yml
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -86,7 +86,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Run VirtCI build
-        run: exec cargo run -- run package/linux_arm64_package.yml
+        run: exec cargo run -- run .ci/package/linux_arm64_package.yml
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -107,7 +107,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Run VirtCI build
-        run: exec cargo run -- run package/mac_package.yml
+        run: exec cargo run -- run .ci/package/mac_package.yml
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -125,7 +125,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Run VirtCI build
-        run: exec cargo run -- run package/windows_x64_package.yml
+        run: exec cargo run -- run .ci/package/windows_x64_package.yml
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -143,7 +143,7 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Run VirtCI build
-        run: exec cargo run -- run package/windows_arm64_package.yml
+        run: exec cargo run -- run .ci/package/windows_arm64_package.yml
 
       - name: Upload artifact
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
