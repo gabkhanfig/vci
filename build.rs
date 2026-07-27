@@ -1,7 +1,7 @@
 // Copyright (C) 2026 gabkhanfig
 // SPDX-License-Identifier: GPL-2.0-only
 
-use std::path::Path;
+// use std::path::Path;
 use std::process::Command;
 
 fn main() {
@@ -41,47 +41,47 @@ fn emit_git_version() {
     println!("cargo:rustc-env=VIRTCI_GIT_DESCRIBE={describe}");
 }
 
-fn build_frontend() {
-    println!("cargo:rerun-if-changed=web/src");
-    println!("cargo:rerun-if-changed=web/index.html");
-    println!("cargo:rerun-if-changed=web/package.json");
+// fn build_frontend() {
+//     println!("cargo:rerun-if-changed=web/src");
+//     println!("cargo:rerun-if-changed=web/index.html");
+//     println!("cargo:rerun-if-changed=web/package.json");
 
-    if !Path::new("web/package.json").exists() {
-        return;
-    }
+//     if !Path::new("web/package.json").exists() {
+//         return;
+//     }
 
-    let npm = if cfg!(target_os = "windows") {
-        "npm.cmd"
-    } else {
-        "npm"
-    };
+//     let npm = if cfg!(target_os = "windows") {
+//         "npm.cmd"
+//     } else {
+//         "npm"
+//     };
 
-    if !Path::new("web/node_modules").exists() {
-        let status = Command::new(npm)
-            .args(["install"])
-            .current_dir("web")
-            .status();
+//     if !Path::new("web/node_modules").exists() {
+//         let status = Command::new(npm)
+//             .args(["install"])
+//             .current_dir("web")
+//             .status();
 
-        match status {
-            Ok(s) if s.success() => {}
-            Ok(s) => panic!("npm install failed with status: {s}"),
-            Err(e) => {
-                println!("cargo:warning=npm not found, skipping frontend build: {e}");
-                return;
-            }
-        }
-    }
+//         match status {
+//             Ok(s) if s.success() => {}
+//             Ok(s) => panic!("npm install failed with status: {s}"),
+//             Err(e) => {
+//                 println!("cargo:warning=npm not found, skipping frontend build: {e}");
+//                 return;
+//             }
+//         }
+//     }
 
-    let status = Command::new(npm)
-        .args(["run", "build"])
-        .current_dir("web")
-        .status();
+//     let status = Command::new(npm)
+//         .args(["run", "build"])
+//         .current_dir("web")
+//         .status();
 
-    match status {
-        Ok(s) if s.success() => {}
-        Ok(s) => panic!("npm run build failed with status: {s}"),
-        Err(e) => {
-            println!("cargo:warning=npm not found, skipping frontend build: {e}");
-        }
-    }
-}
+//     match status {
+//         Ok(s) if s.success() => {}
+//         Ok(s) => panic!("npm run build failed with status: {s}"),
+//         Err(e) => {
+//             println!("cargo:warning=npm not found, skipping frontend build: {e}");
+//         }
+//     }
+// }
