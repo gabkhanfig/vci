@@ -2,7 +2,7 @@
 
 VirtCI adheres to [Semantic Versioning](https://semver.org/).
 
-## Version 0.4.0 - 2026-07-19
+## Version 0.4.0 - 2026-07-27
 
 ### Added
 
