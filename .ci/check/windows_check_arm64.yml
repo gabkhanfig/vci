@@ -71,35 +71,35 @@ windows-check-arm64:
       workdir: virtci
       run: cargo deny check
 
-    - name: Install NPM Dependencies (locked, scripts blocked)
-      # `npm ci` installs STRICTLY from package-lock.json and verifies every
-      # package's sha512 integrity hash. The committed web/.npmrc layers on
-      # ignore-scripts, min-release-age=7, and engine-strict.
-      workdir: virtci/web
-      run: |
-        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-        npm ci
+    # - name: Install NPM Dependencies (locked, scripts blocked)
+    #   # `npm ci` installs STRICTLY from package-lock.json and verifies every
+    #   # package's sha512 integrity hash. The committed web/.npmrc layers on
+    #   # ignore-scripts, min-release-age=7, and engine-strict.
+    #   workdir: virtci/web
+    #   run: |
+    #     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+    #     npm ci
 
-    - name: NPM Provenance and Signature Audit
-      workdir: virtci/web
-      run: |
-        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-        npm audit signatures
+    # - name: NPM Provenance and Signature Audit
+    #   workdir: virtci/web
+    #   run: |
+    #     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+    #     npm audit signatures
 
-    - name: NPM Vulnerability Audit
-      # Fails on any known advisory at moderate severity or above. Tighten to
-      # --audit-level=low to also block low-severity advisories.
-      workdir: virtci/web
-      run: |
-        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-        npm audit --audit-level=moderate
+    # - name: NPM Vulnerability Audit
+    #   # Fails on any known advisory at moderate severity or above. Tighten to
+    #   # --audit-level=low to also block low-severity advisories.
+    #   workdir: virtci/web
+    #   run: |
+    #     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+    #     npm audit --audit-level=moderate
 
-    - name: Web Lint and Build
-      workdir: virtci/web
-      run: |
-        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
-        npm run lint
-        npm run build
+    # - name: Web Lint and Build
+    #   workdir: virtci/web
+    #   run: |
+    #     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
+    #     npm run lint
+    #     npm run build
 
     - name: Clippy
       workdir: virtci

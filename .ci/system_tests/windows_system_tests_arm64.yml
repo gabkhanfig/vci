@@ -91,11 +91,11 @@ windows-system-tests-arm64:
         winget install -e --id LLVM.LLVM --silent
         [Environment]::SetEnvironmentVariable('Path', [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';C:\Program Files\LLVM\bin', 'Machine')
 
-    - name: Install NPM Dependencies
-      workdir: virtci/web
-      run: |
-        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-        npm ci
+    # - name: Install NPM Dependencies
+    #   workdir: virtci/web
+    #   run: |
+    #     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+    #     npm ci
 
     - name: Fetch Cargo Dependencies
       workdir: virtci

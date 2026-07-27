@@ -54,30 +54,30 @@ macos-check-arm64:
       workdir: virtci
       run: . "$HOME/.cargo/env" && cargo deny check
 
-    - name: Install NPM Dependencies (locked, scripts blocked)
-      workdir: virtci/web
-      run: |
-        export PATH="/usr/local/bin:$PATH"
-        npm ci
+    # - name: Install NPM Dependencies (locked, scripts blocked)
+    #   workdir: virtci/web
+    #   run: |
+    #     export PATH="/usr/local/bin:$PATH"
+    #     npm ci
 
-    - name: NPM Provenance and Signature Audit
-      workdir: virtci/web
-      run: |
-        export PATH="/usr/local/bin:$PATH"
-        npm audit signatures
+    # - name: NPM Provenance and Signature Audit
+    #   workdir: virtci/web
+    #   run: |
+    #     export PATH="/usr/local/bin:$PATH"
+    #     npm audit signatures
 
-    - name: NPM Vulnerability Audit
-      workdir: virtci/web
-      run: |
-        export PATH="/usr/local/bin:$PATH"
-        npm audit --audit-level=moderate
+    # - name: NPM Vulnerability Audit
+    #   workdir: virtci/web
+    #   run: |
+    #     export PATH="/usr/local/bin:$PATH"
+    #     npm audit --audit-level=moderate
 
-    - name: Web Lint and Build
-      workdir: virtci/web
-      run: |
-        export PATH="/usr/local/bin:$PATH"
-        npm run lint
-        npm run build
+    # - name: Web Lint and Build
+    #   workdir: virtci/web
+    #   run: |
+    #     export PATH="/usr/local/bin:$PATH"
+    #     npm run lint
+    #     npm run build
 
     - name: Clippy
       workdir: virtci

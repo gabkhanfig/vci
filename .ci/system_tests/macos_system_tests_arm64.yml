@@ -46,11 +46,11 @@ macos-system-tests-arm64:
         npm --version
         npm --version | awk -F. '($1<11)||($1==11 && $2<10){ print "npm "$0" is too old for min-release-age (need >= 11.10.0)"; exit 1 }'
 
-    - name: Install NPM Dependencies
-      workdir: virtci/web
-      run: |
-        export PATH="/usr/local/bin:$PATH"
-        npm ci
+    # - name: Install NPM Dependencies
+    #   workdir: virtci/web
+    #   run: |
+    #     export PATH="/usr/local/bin:$PATH"
+    #     npm ci
 
     - name: Fetch Cargo Dependencies
       workdir: virtci

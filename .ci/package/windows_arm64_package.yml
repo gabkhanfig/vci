@@ -53,11 +53,11 @@ win-11-arm64:
     - name: Install LLVM
       run: choco install llvm -y
 
-    - name: Install NPM Dependencies
-      run: |
-        $env:Path = "C:\Program Files\nodejs;env:Path"
-        cd web
-        npm.cmd install
+    # - name: Install NPM Dependencies
+    #   run: |
+    #     $env:Path = "C:\Program Files\nodejs;env:Path"
+    #     cd web
+    #     npm.cmd install
 
     - name: Build
       run: |

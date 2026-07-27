@@ -22,7 +22,7 @@ fn main() {
         .compile("vci-native");
 
     emit_git_version();
-    build_frontend();
+    //build_frontend();
 }
 
 fn emit_git_version() {

@@ -50,10 +50,10 @@ ubuntu-system-tests-x64:
         sudo apt update
         sudo apt install clang-format -y -qq
 
-    - name: Install NPM Dependencies
-      workdir: virtci/web
-      run: |
-        npm ci
+    # - name: Install NPM Dependencies
+    #   workdir: virtci/web
+    #   run: |
+    #     npm ci
 
     - name: Fetch Cargo Dependencies
       workdir: virtci

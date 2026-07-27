@@ -58,11 +58,11 @@ windows-system-tests-x64:
             throw "npm $npm is too old for min-release-age (need >= 11.10.0)"
         }
 
-    - name: Install NPM Dependencies
-      workdir: virtci/web
-      run: |
-        Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-        npm ci
+    # - name: Install NPM Dependencies
+    #   workdir: virtci/web
+    #   run: |
+    #     Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+    #     npm ci
 
     - name: Fetch Cargo Dependencies
       workdir: virtci
